@@ -194,7 +194,7 @@ class WebGLBackend extends Backend {
 		 * @type {WebGLFramebuffer}
 		 * @default null
 		 */
-		this._xrFamebuffer = null;
+		this._xrFramebuffer = null;
 
 	}
 
@@ -322,11 +322,11 @@ class WebGLBackend extends Backend {
 	/**
 	 * Sets the XR rendering destination.
 	 *
-	 * @param {WebGLFramebuffer} xrFamebuffer - The XR framebuffer.
+	 * @param {WebGLFramebuffer} xrFramebuffer - The XR framebuffer.
 	 */
-	setXRTarget( xrFamebuffer ) {
+	setXRTarget( xrFramebuffer ) {
 
-		this._xrFamebuffer = xrFamebuffer;
+		this._xrFramebuffer = xrFramebuffer;
 
 	}
 
@@ -707,6 +707,27 @@ class WebGLBackend extends Backend {
 	}
 
 	/**
+	 * Returns the clear color and alpha into a single
+	 * color object.
+	 *
+	 * @return {Color4} The clear color.
+	 */
+	getClearColor() {
+
+		const clearColor = super.getClearColor();
+
+		// Since the canvas is always created with alpha: true,
+		// WebGL must always premultiply the clear color.
+
+		clearColor.r *= clearColor.a;
+		clearColor.g *= clearColor.a;
+		clearColor.b *= clearColor.a;
+
+		return clearColor;
+
+	}
+
+	/**
 	 * Performs a clear operation.
 	 *
 	 * @param {boolean} color - Whether the color buffer should be cleared or not.
@@ -717,17 +738,11 @@ class WebGLBackend extends Backend {
 	 */
 	clear( color, depth, stencil, descriptor = null, setFrameBuffer = true ) {
 
-		const { gl } = this;
+		const { gl, renderer } = this;
 
 		if ( descriptor === null ) {
 
 			const clearColor = this.getClearColor();
-
-			// premultiply alpha
-
-			clearColor.r *= clearColor.a;
-			clearColor.g *= clearColor.a;
-			clearColor.b *= clearColor.a;
 
 			descriptor = {
 				textures: null,
@@ -756,13 +771,10 @@ class WebGLBackend extends Backend {
 
 				clearColor = this.getClearColor();
 
-				// premultiply alpha
-
-				clearColor.r *= clearColor.a;
-				clearColor.g *= clearColor.a;
-				clearColor.b *= clearColor.a;
-
 			}
+
+			const clearDepth = renderer.getClearDepth();
+			const clearStencil = renderer.getClearStencil();
 
 			if ( depth ) this.state.setDepthMask( true );
 
@@ -787,15 +799,15 @@ class WebGLBackend extends Backend {
 
 				if ( depth && stencil ) {
 
-					gl.clearBufferfi( gl.DEPTH_STENCIL, 0, 1, 0 );
+					gl.clearBufferfi( gl.DEPTH_STENCIL, 0, clearDepth, clearStencil );
 
 				} else if ( depth ) {
 
-					gl.clearBufferfv( gl.DEPTH, 0, [ 1.0 ] );
+					gl.clearBufferfv( gl.DEPTH, 0, [ clearDepth ] );
 
 				} else if ( stencil ) {
 
-					gl.clearBufferiv( gl.STENCIL, 0, [ 0 ] );
+					gl.clearBufferiv( gl.STENCIL, 0, [ clearStencil ] );
 
 				}
 
@@ -1912,7 +1924,7 @@ class WebGLBackend extends Backend {
 
 			} else if ( isXRRenderTarget && hasExternalTextures === false ) {
 
-				fb = this._xrFamebuffer;
+				fb = this._xrFramebuffer;
 
 			} else {
 
