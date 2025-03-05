@@ -12,7 +12,7 @@ import { reference } from '../../nodes/accessors/ReferenceBaseNode.js';
 const _defaultValues = /*@__PURE__*/ new SpriteMaterial();
 
 /**
- * Node material version of `SpriteMaterial`.
+ * Node material version of {@link SpriteMaterial}.
  *
  * @augments NodeMaterial
  */
@@ -121,7 +121,7 @@ class SpriteNodeMaterial extends NodeMaterial {
 
 		if ( scaleNode !== null ) {
 
-			scale = scale.mul( float( scaleNode ) );
+			scale = scale.mul( vec2( scaleNode ) );
 
 		}
 

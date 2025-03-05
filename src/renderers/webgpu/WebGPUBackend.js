@@ -15,6 +15,7 @@ import WebGPUTextureUtils from './utils/WebGPUTextureUtils.js';
 
 import { WebGPUCoordinateSystem } from '../../constants.js';
 import WebGPUTimestampQueryPool from './utils/WebGPUTimestampQueryPool.js';
+import { warnOnce } from '../../utils.js';
 
 /**
  * A backend implementation targeting WebGPU.
@@ -25,21 +26,27 @@ import WebGPUTimestampQueryPool from './utils/WebGPUTimestampQueryPool.js';
 class WebGPUBackend extends Backend {
 
 	/**
+	 * WebGPUBackend options.
+	 *
+	 * @typedef {Object} WebGPUBackend~Options
+	 * @property {boolean} [logarithmicDepthBuffer=false] - Whether logarithmic depth buffer is enabled or not.
+	 * @property {boolean} [alpha=true] - Whether the default framebuffer (which represents the final contents of the canvas) should be transparent or opaque.
+	 * @property {boolean} [depth=true] - Whether the default framebuffer should have a depth buffer or not.
+	 * @property {boolean} [stencil=false] - Whether the default framebuffer should have a stencil buffer or not.
+	 * @property {boolean} [antialias=false] - Whether MSAA as the default anti-aliasing should be enabled or not.
+	 * @property {number} [samples=0] - When `antialias` is `true`, `4` samples are used by default. Set this parameter to any other integer value than 0 to overwrite the default.
+	 * @property {boolean} [forceWebGL=false] - If set to `true`, the renderer uses a WebGL 2 backend no matter if WebGPU is supported or not.
+	 * @property {boolean} [trackTimestamp=false] - Whether to track timestamps with a Timestamp Query API or not.
+	 * @property {string} [powerPreference=undefined] - The power preference.
+	 * @property {Object} [requiredLimits=undefined] - Specifies the limits that are required by the device request. The request will fail if the adapter cannot provide these limits.
+	 * @property {GPUDevice} [device=undefined] - If there is an existing GPU device on app level, it can be passed to the renderer as a parameter.
+	 * @property {number} [outputType=undefined] - Texture type for output to canvas. By default, device's preferred format is used; other formats may incur overhead.
+	 */
+
+	/**
 	 * Constructs a new WebGPU backend.
 	 *
-	 * @param {Object} parameters - The configuration parameter.
-	 * @param {boolean} [parameters.logarithmicDepthBuffer=false] - Whether logarithmic depth buffer is enabled or not.
-	 * @param {boolean} [parameters.alpha=true] - Whether the default framebuffer (which represents the final contents of the canvas) should be transparent or opaque.
-	 * @param {boolean} [parameters.depth=true] - Whether the default framebuffer should have a depth buffer or not.
-	 * @param {boolean} [parameters.stencil=false] - Whether the default framebuffer should have a stencil buffer or not.
-	 * @param {boolean} [parameters.antialias=false] - Whether MSAA as the default anti-aliasing should be enabled or not.
-	 * @param {number} [parameters.samples=0] - When `antialias` is `true`, `4` samples are used by default. Set this parameter to any other integer value than 0 to overwrite the default.
-	 * @param {boolean} [parameters.forceWebGL=false] - If set to `true`, the renderer uses a WebGL 2 backend no matter if WebGPU is supported or not.
-	 * @param {boolean} [parameters.trackTimestamp=false] - Whether to track timestamps with a Timestamp Query API or not.
-	 * @param {string} [parameters.powerPreference=undefined] - The power preference.
-	 * @param {Object} [parameters.requiredLimits=undefined] - Specifies the limits that are required by the device request. The request will fail if the adapter cannot provide these limits.
-	 * @param {GPUDevice} [parameters.device=undefined] - If there is an existing GPU device on app level, it can be passed to the renderer as a parameter.
-	 * @param {number} [parameters.outputType=undefined] - Texture type for output to canvas. By default, device's preferred format is used; other formats may incur overhead.
+	 * @param {WebGPUBackend~Options} [parameters] - The configuration parameter.
 	 */
 	constructor( parameters = {} ) {
 
@@ -441,13 +448,23 @@ class WebGPUBackend extends Backend {
 
 				}
 
+				// only apply the user-defined clearValue to the first color attachment like in beginRender()
+
+				let clearValue = { r: 0, g: 0, b: 0, a: 1 };
+
+				if ( i === 0 && colorAttachmentsConfig.clearValue ) {
+
+					clearValue = colorAttachmentsConfig.clearValue;
+
+				}
+
 				colorAttachments.push( {
 					view,
 					depthSlice: sliceIndex,
 					resolveTarget,
-					loadOp: GPULoadOp.Load,
-					storeOp: GPUStoreOp.Store,
-					...colorAttachmentsConfig
+					loadOp: colorAttachmentsConfig.loadOP || GPULoadOp.Load,
+					storeOp: colorAttachmentsConfig.storeOP || GPUStoreOp.Store,
+					clearValue: clearValue
 				} );
 
 			}
@@ -1220,6 +1237,13 @@ class WebGPUBackend extends Backend {
 				const drawCount = object._multiDrawCount;
 				const drawInstances = object._multiDrawInstances;
 
+				if ( drawInstances !== null ) {
+
+					// @deprecated, r174
+					warnOnce( 'THREE.WebGPUBackend: renderMultiDrawInstances has been deprecated and will be removed in r184. Append to renderMultiDraw arguments and use indirection.' );
+
+				}
+
 				for ( let i = 0; i < drawCount; i ++ ) {
 
 					const count = drawInstances ? drawInstances[ i ] : 1;
@@ -1847,38 +1871,56 @@ class WebGPUBackend extends Backend {
 	 *
 	 * @param {Texture} srcTexture - The source texture.
 	 * @param {Texture} dstTexture - The destination texture.
-	 * @param {?Vector4} [srcRegion=null] - The region of the source texture to copy.
+	 * @param {?(Box3|Box2)} [srcRegion=null] - The region of the source texture to copy.
 	 * @param {?(Vector2|Vector3)} [dstPosition=null] - The destination position of the copy.
-	 * @param {number} [level=0] - The mip level to copy.
+	 * @param {number} [srcLevel=0] - The mipmap level to copy.
+	 * @param {number} [dstLevel=0] - The destination mip level to copy to.
 	 */
-	copyTextureToTexture( srcTexture, dstTexture, srcRegion = null, dstPosition = null, level = 0 ) {
+	copyTextureToTexture( srcTexture, dstTexture, srcRegion = null, dstPosition = null, srcLevel = 0, dstLevel = 0 ) {
 
 		let dstX = 0;
 		let dstY = 0;
-		let dstLayer = 0;
+		let dstZ = 0;
 
 		let srcX = 0;
 		let srcY = 0;
-		let srcLayer = 0;
+		let srcZ = 0;
 
 		let srcWidth = srcTexture.image.width;
 		let srcHeight = srcTexture.image.height;
+		let srcDepth = 1;
+
 
 		if ( srcRegion !== null ) {
 
-			srcX = srcRegion.x;
-			srcY = srcRegion.y;
-			srcLayer = srcRegion.z || 0;
-			srcWidth = srcRegion.width;
-			srcHeight = srcRegion.height;
+			if ( srcRegion.isBox3 === true ) {
+
+				srcX = srcRegion.min.x;
+				srcY = srcRegion.min.y;
+				srcZ = srcRegion.min.z;
+				srcWidth = srcRegion.max.x - srcRegion.min.x;
+				srcHeight = srcRegion.max.y - srcRegion.min.y;
+				srcDepth = srcRegion.max.z - srcRegion.min.z;
+
+			} else {
+
+				// Assume it's a Box2
+				srcX = srcRegion.min.x;
+				srcY = srcRegion.min.y;
+				srcWidth = srcRegion.max.x - srcRegion.min.x;
+				srcHeight = srcRegion.max.y - srcRegion.min.y;
+				srcDepth = 1;
+
+			}
 
 		}
+
 
 		if ( dstPosition !== null ) {
 
 			dstX = dstPosition.x;
 			dstY = dstPosition.y;
-			dstLayer = dstPosition.z || 0;
+			dstZ = dstPosition.z || 0;
 
 		}
 
@@ -1890,22 +1932,28 @@ class WebGPUBackend extends Backend {
 		encoder.copyTextureToTexture(
 			{
 				texture: sourceGPU,
-				mipLevel: level,
-				origin: { x: srcX, y: srcY, z: srcLayer }
+				mipLevel: srcLevel,
+				origin: { x: srcX, y: srcY, z: srcZ }
 			},
 			{
 				texture: destinationGPU,
-				mipLevel: level,
-				origin: { x: dstX, y: dstY, z: dstLayer }
+				mipLevel: dstLevel,
+				origin: { x: dstX, y: dstY, z: dstZ }
 			},
 			[
 				srcWidth,
 				srcHeight,
-				1
+				srcDepth
 			]
 		);
 
 		this.device.queue.submit( [ encoder.finish() ] );
+
+		if ( dstLevel === 0 && dstTexture.generateMipmaps ) {
+
+			this.textureUtils.generateMipmaps( dstTexture );
+
+		}
 
 	}
 

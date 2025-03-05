@@ -98,9 +98,13 @@ const _outputDirection = /*@__PURE__*/ vec3( _direction.x, _direction.y, _direct
  * Paper: Fast, Accurate Image-Based Lighting:
  * {@link https://drive.google.com/file/d/15y8r_UpKlU9SvV4ILb0C3qCPecS8pvLz/view}
 */
-
 class PMREMGenerator {
 
+	/**
+	 * Constructs a new PMREM generator.
+	 *
+	 * @param {Renderer} renderer - The renderer.
+	 */
 	constructor( renderer ) {
 
 		this._renderer = renderer;
@@ -141,7 +145,7 @@ class PMREMGenerator {
 	 * @param {Vector3} [options.renderTarget=origin] - The position of the internal cube camera that renders the scene.
 	 * @param {?RenderTarget} [options.renderTarget=null] - The render target to use.
 	 * @return {RenderTarget} The resulting PMREM.
-	 * @see fromSceneAsync
+	 * @see {@link PMREMGenerator#fromSceneAsync}
 	 */
 	fromScene( scene, sigma = 0, near = 0.1, far = 100, options = {} ) {
 
@@ -203,10 +207,10 @@ class PMREMGenerator {
 	 * @param {number} [far=100] - The far plane distance.
 	 * @param {Object} [options={}] - The configuration options.
 	 * @param {number} [options.size=256] - The texture size of the PMREM.
-	 * @param {Vector3} [options.renderTarget=origin] - The position of the internal cube camera that renders the scene.
+	 * @param {Vector3} [options.position=origin] - The position of the internal cube camera that renders the scene.
 	 * @param {?RenderTarget} [options.renderTarget=null] - The render target to use.
 	 * @return {Promise<RenderTarget>} A Promise that resolve with the PMREM when the generation has been finished.
-	 * @see fromScene
+	 * @see {@link PMREMGenerator#fromScene}
 	 */
 	async fromSceneAsync( scene, sigma = 0, near = 0.1, far = 100, options = {} ) {
 
@@ -224,7 +228,7 @@ class PMREMGenerator {
 	 * @param {Texture} equirectangular - The equirectangular texture to be converted.
 	 * @param {?RenderTarget} [renderTarget=null] - The render target to use.
 	 * @return {RenderTarget} The resulting PMREM.
-	 * @see fromEquirectangularAsync
+	 * @see {@link PMREMGenerator#fromEquirectangularAsync}
 	 */
 	fromEquirectangular( equirectangular, renderTarget = null ) {
 
@@ -254,7 +258,7 @@ class PMREMGenerator {
 	 * @param {Texture} equirectangular - The equirectangular texture to be converted.
 	 * @param {?RenderTarget} [renderTarget=null] - The render target to use.
 	 * @return {Promise<RenderTarget>} The resulting PMREM.
-	 * @see fromEquirectangular
+	 * @see {@link PMREMGenerator#fromEquirectangular}
 	 */
 	async fromEquirectangularAsync( equirectangular, renderTarget = null ) {
 
@@ -272,7 +276,7 @@ class PMREMGenerator {
 	 * @param {Texture} cubemap - The cubemap texture to be converted.
 	 * @param {?RenderTarget} [renderTarget=null] - The render target to use.
 	 * @return {RenderTarget} The resulting PMREM.
-	 * @see fromCubemapAsync
+	 * @see {@link PMREMGenerator#fromCubemapAsync}
 	 */
 	fromCubemap( cubemap, renderTarget = null ) {
 
@@ -302,7 +306,7 @@ class PMREMGenerator {
 	 * @param {Texture} cubemap - The cubemap texture to be converted.
 	 * @param {?RenderTarget} [renderTarget=null] - The render target to use.
 	 * @return {Promise<RenderTarget>} The resulting PMREM.
-	 * @see fromCubemap
+	 * @see {@link PMREMGenerator#fromCubemap}
 	 */
 	async fromCubemapAsync( cubemap, renderTarget = null ) {
 
@@ -642,6 +646,7 @@ class PMREMGenerator {
 	 * the poles) to approximate the orthogonally-separable blur. It is least
 	 * accurate at the poles, but still does a decent job.
 	 *
+	 * @private
 	 * @param {RenderTarget} cubeUVRenderTarget - The cubemap render target.
 	 * @param {number} lodIn - The input level-of-detail.
 	 * @param {number} lodOut - The output level-of-detail.

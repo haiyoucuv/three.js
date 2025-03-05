@@ -7,6 +7,7 @@ import { nodeProxy, vec3 } from '../tsl/TSLBase.js';
 
 import { Texture } from '../../textures/Texture.js';
 import PMREMGenerator from '../../renderers/common/extras/PMREMGenerator.js';
+import { materialEnvRotation } from '../accessors/MaterialProperties.js';
 
 const _cache = new WeakMap();
 
@@ -36,7 +37,7 @@ function _generateCubeUVSize( imageHeight ) {
  * @param {Texture} texture - The texture to create the PMREM for.
  * @param {Renderer} renderer - The renderer.
  * @param {PMREMGenerator} generator - The PMREM generator.
- * @return {Texture} The PMREM.
+ * @return {?Texture} The PMREM.
  */
 function _getPMREMFromTexture( texture, renderer, generator ) {
 
@@ -89,7 +90,7 @@ function _getPMREMFromTexture( texture, renderer, generator ) {
 
 /**
  * Returns a cache that stores generated PMREMs for the respective textures.
- * A cache must be maintaned per renderer since PMREMs are render target textures
+ * A cache must be maintained per renderer since PMREMs are render target textures
  * which can't be shared across render contexts.
  *
  * @private
@@ -176,7 +177,7 @@ class PMREMNode extends TempNode {
 		 * Reference to a PMREM generator.
 		 *
 		 * @private
-		 * @type {PMREMGenerator}
+		 * @type {?PMREMGenerator}
 		 * @default null
 		 */
 		this._generator = null;
@@ -313,7 +314,7 @@ class PMREMNode extends TempNode {
 
 		//
 
-		uvNode = vec3( uvNode.x, uvNode.y.negate(), uvNode.z );
+		uvNode = materialEnvRotation.mul( vec3( uvNode.x, uvNode.y.negate(), uvNode.z ) );
 
 		//
 
@@ -347,7 +348,7 @@ export default PMREMNode;
  * Returns `true` if the given cube map image has been fully loaded.
  *
  * @private
- * @param {Array<(Image|Object)>} image - The cube map image.
+ * @param {?Array<(Image|Object)>} [image] - The cube map image.
  * @return {boolean} Whether the given cube map is ready or not.
  */
 function isCubeMapReady( image ) {
